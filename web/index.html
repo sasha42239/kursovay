@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head> <!-- подключаем кодировку , имя, библиотеки стили и тд -->
+    <meta charset="UTF-8">
+    <title>Хищник-Жертва</title>
+
+    <script src="eel.js"></script>
+
+    <link rel="icon" type="image/png" href="favicon.jpg">
+    <link rel="stylesheet" href="styles.css">
+    <script src="jquery.min.js"></script>
+    <script src="flot/jquery.flot.min.js"></script>
+</head>
+<body><!-- что мы видим в приложухе -->
+
+<div class="wrapper"><!-- внем все -->
+    <div class="temp"> <!-- див -контейнер(1-ая стороничка) -->
+         <input id="x3" type="text" placeholder="Введите кол-во капусты">
+        <input id="a3" type="text" placeholder="Введите константу скорости роста капусты">
+        <input id="x1" type="text" placeholder="Введите кол-во жертв">
+        <input id="d1" type="text" placeholder="Введите константу естественной смерти">
+        <input id="b1" type="text" placeholder="Введите взаимодействия жертвы с хищником">
+        <input id="zk" type="text" placeholder="Введите взаимодействия жертвы с капустой">
+        <input id="x2" type="text" placeholder="Введите кол-во хищников">
+        <input id="d2" type="text" placeholder="Введите константу естественной смерти">
+        <input id="b2" type="text" placeholder="Введите константу взаимодействия хищника с жертвой">
+        <input id="vk" type="text" placeholder="Введите константу взаимодействия хищника c каспустой">
+
+
+        <button id="show">Построить график</button>
+    </div>
+    <div class="charts hidden"> <!-- див -контейнер(2-ая стороничка) -->
+        <div class="charts_inside" id="placeholder" style="width: 900px; height: 450px">
+
+        </div>
+        <button id="return">Вернуться</button>
+    </div>
+
+</div>
+
+<div id='tooltip'></div> <!-- контейнер пусто -->
+
+<script type="text/javascript"> //скрипт работы проги
+    async function generate_data(b1, b2, x1, x2, x3, a3, zk, vk, d1, d2) {
+        return await eel.generate_data(b1, b2, x1, x2, x3, a3, zk, vk, d1, d2)();//выполняет наш код питона которая возвращает знаение из питона
+    }
+
+
+    $('#show').on('click', async function () { //обращаемся к эл-ту шоу, запущаем асик фун-ю
+
+        let b1 = Number($('#b1').val());//лет -создаем переменную, стороку в число
+        let b2 = Number($('#b2').val());
+        let x1 = Number($('#x1').val());
+        let x2 = Number($('#x2').val());
+        let x3 = Number($('#x3').val());
+        let a3 = Number($('#a3').val());
+        let zk = Number($('#zk').val());
+        let vk = Number($('#vk').val());
+        let d1 = Number($('#d1').val());
+        let d2 = Number($('#d2').val());
+
+        const data = await generate_data(b1, b2, x1, x2, x3, a3, zk, vk, d1, d2); //ждем выполнеия фун-и
+        let params = {//это из вед странички
+            series: {
+                lines: {
+                    show: true
+                },
+                points: {
+                    show: false
+                }
+            },
+            grid: {
+                hoverable: true
+            },
+            yaxis: {
+
+                min: 0
+            },
+            zoom: {
+                interactive: true
+            },
+            pan: {
+                interactive: true,
+                enableTouch: true
+            }
+        }
+        let plot = $.plot($("#placeholder"), [   //для рисования графиков #placeholder-где назодится график
+                {
+                    data: data[0], //массив с данными о жертвах во весь промежуток
+                    label: "Количество жертв"
+                },                                                                       //что в графике
+                {
+                    data: data[1],
+                    label: "Количество хищников"
+                },
+                {
+                data: data[2],
+                 label: "Количество капусточки"
+                }
+                ],
+            params);//как выгядит
+
+
+
+        $("#placeholder").bind("plothover", function (event, pos, item) { //что будет происходить при опр действии-bind,
+                if (!pos.x || !pos.y)  return
+                if (item) {
+                    let x = item.datapoint[0].toFixed(1),
+                        y = item.datapoint[1].toFixed(0);
+
+                    $('#tooltip').html(item.series.label + ' на ' + x + ' день = ' + y).css({
+                        top: item.pageY + 5,
+                        left: item.pageX + 5
+                    }).fadeIn(200);
+                } else {
+                    $("#tooltip").hide();
+                }
+            }
+        )
+
+        $('.temp').addClass('hidden');
+        $('.charts').removeClass('hidden');
+
+        let y = plot.getAxes().yaxis;
+        y.options.min = 0;
+        y.options.autoscaleMargin = null;// от минимальному
+        y.options.autoscale = 'exact';  // к максимальному
+        let x = plot.getAxes().xaxis;
+        x.options.min = 0;
+        x.options.autoscaleMargin = null;
+        x.options.autoscale = 'exact';
+
+        let k = 1;
+
+        function update() {
+            k += 2;
+
+            let data1 = data[0].slice(0, k) //созадем массив для жертв, но мы берем срез от 0 до 3
+            let data2 = data[1].slice(0, k)
+            let data3 = data[2].slice(0, k)
+
+            let newData = [
+                {
+                    data: data1,
+                    label: 'Количество жертв'
+                },
+                {
+                    data: data2,
+                    label: 'Количество хищников'
+                },
+                {
+                data: data3,
+                    label: 'Количество капусточки'
+                }
+            ]
+            plot.setData(newData);//задамем дату
+            plot.setupGrid(true);//измением его оси обновлялись
+            plot.draw();
+            if (k < 2000) {
+                window.requestAnimationFrame(update);
+            }
+        }
+
+        window.requestAnimationFrame(update);
+
+    });
+
+    $('#return').on('click', function () { //возврат на первую станичку
+        $('.temp').removeClass('hidden');
+        $('.charts').addClass('hidden');
+    });
+</script>
+</body>
+</html>
